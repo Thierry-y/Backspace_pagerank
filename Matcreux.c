@@ -5,14 +5,20 @@
 
 #define EPSILON 1e-6
 #define ALPHA 0.85
-// ========================
+
 // Utilitaires
-// ========================
 double norme_L1(double* a, double* b, int N){
     double s = 0.0;
     for(int i=0;i<N;i++)
         s += fabs(a[i]-b[i]);
     return s;
+}
+//Allouer la matrice pour pagerank avec matrice complete
+int** creer_matrice_int(int N){
+    int** mat = malloc(N * sizeof(int*));
+    for(int i=0;i<N;i++)
+        mat[i] = NULL;
+    return mat;
 }
 
 void liberer_matrice(int** mat, int N){
@@ -21,7 +27,7 @@ void liberer_matrice(int** mat, int N){
     free(mat);
 }
 // lecture d'un graphe sous format matrix planet
-void lire_graphe_matrixmarket(const char* nom_fichier, int* N, int*** adj, int** deg_out){
+void lire_graphe_matrix_market(const char* nom_fichier, int* N, int*** adj, int** deg_out){
     FILE* f = fopen(nom_fichier, "r");
     if(!f){
         printf("Erreur ouverture fichier %s\n", nom_fichier);
@@ -66,7 +72,7 @@ void lire_graphe_matrixmarket(const char* nom_fichier, int* N, int*** adj, int**
     }
 
     *N = nrows;
-
+    /**/
     // Temporairement stocker toutes les aretes
     int* src = malloc(M * sizeof(int));
     int* dst = malloc(M * sizeof(int));
@@ -138,42 +144,28 @@ void lire_graphe_matrixmarket(const char* nom_fichier, int* N, int*** adj, int**
     free(dst);
     free(pos);
 }
-/*lire un graphe sous le format suivant :
 
-6 14
-4 0 1 3 5
-4 2 3 4 5
-4 0 1 3 4
-1 4
-1 2
-0
-*/
-
-
-void lire_graphe_liste(const char* nom_fichier, int* N, int*** adj, int** deg_out){
+// Lecture graphe matrice complète
+void lire_graphe_matrice(const char* nom_fichier, int* N, int*** adj_matrix, int** deg_out){
     FILE* f = fopen(nom_fichier,"r");
     if(!f){ printf("Erreur ouverture fichier\n"); exit(1); }
 
-    int M;
-    fscanf(f,"%d %d", N, &M);  // N sommets, M arcs (optionnel)
+    fscanf(f,"%d", N);
+    *adj_matrix = creer_matrice_int(*N);
     *deg_out = malloc((*N) * sizeof(int));
-    *adj = malloc((*N) * sizeof(int*));
 
     for(int i=0;i<*N;i++){
-        int d;
-        fscanf(f,"%d",&d);           // nombre d'arcs sortants
-        (*deg_out)[i] = d;
-        (*adj)[i] = malloc(d * sizeof(int));
-        for(int j=0;j<d;j++)
-            fscanf(f,"%d",&(*adj)[i][j]);
+        (*adj_matrix)[i] = malloc((*N)*sizeof(int));
+        (*deg_out)[i] = 0;
+        for(int j=0;j<*N;j++){
+            fscanf(f,"%d", &(*adj_matrix)[i][j]);
+            if((*adj_matrix)[i][j]==1) (*deg_out)[i]++;
+        }
     }
-
     fclose(f);
 }
 
-// ========================
 // PageRank liste d’adjacence
-// ========================
 void pagerank_liste(int N, int** adj, int* deg_out, double* pi){
     double* pi_new = malloc(N*sizeof(double));
    // pi=malloc(N*sizeof(double));
@@ -204,7 +196,7 @@ void pagerank_liste(int N, int** adj, int* deg_out, double* pi){
     printf("Convergence en %d iterations\n", iter);
 }
 //pagerank avec surfer aléatoire
-void true_pagerank_2(int N, int** adj, int* deg_out, double* x_pair ){
+void true_pagerank(int N, int** adj, int* deg_out, double* x_pair ){
     double* x_impair = malloc(N*sizeof(double));
 
     // Initialisation
@@ -233,7 +225,7 @@ void true_pagerank_2(int N, int** adj, int* deg_out, double* x_pair ){
             }
         }
 
-        // redistribution des dangling nodes
+        // redistribution des noeud "puis"
         for(int j=0;j<N;j++){
             x_impair[j] += ALPHA * xf / N;
         }
@@ -263,34 +255,64 @@ void true_pagerank_2(int N, int** adj, int* deg_out, double* x_pair ){
     free(f);
 }
 
-// ========================
 // Affichage
-// ========================
 void afficher_pagerank(int N, double* pi){
     for(int i=0;i<N;i++)
         printf("Page %d : %.8f\n", i, pi[i]);
 
 }
+// Verifier que un vecteur est un vecteur de proba
+double verrifier_pi(double *pi,int N){
+    double somme=0;
+    for(int i=0;i<N;i++){
+        somme+=pi[i];
+    }
+    return somme;
+}
 
-// ========================
 // Main
-// ========================
 int main(){
+    
     int N;
     int** adj = NULL;
     int* deg_out = NULL;
     double* pi = NULL;
 
     //lire_graphe_liste("matCreux.txt", &N, &adj, &deg_out);
-    lire_graphe_matrixmarket("wikipedia.mtx", &N, &adj, &deg_out);
+    lire_graphe_matrix_market("wikipedia.mtx", &N, &adj, &deg_out);
     pi = malloc(N*sizeof(double));
-    true_pagerank_2(N, adj, deg_out, pi);
+    true_pagerank(N, adj, deg_out, pi);
     //pagerank_liste(N, adj, deg_out, pi);
     //afficher_pagerank(N, pi);
 
     liberer_matrice(adj, N);
+    double verrification_pi =verrifier_pi(pi,N);
+    if(verrification_pi==1.000000){
+        printf("Le vecteur pi est valable");
+    }else{
+        printf("Le vecteur pi n'est pas valable, sa somme vaut %2f ",verrification_pi);
+    }
     free(deg_out);
     free(pi);
 
     return 0;
+    /* exemple d'affichage de courbe avec gnuplot
+        FILE *gnuplot;
+
+    // Ouvre Gnuplot en écriture
+    gnuplot = popen("gnuplot -persistent", "w");
+
+    if (gnuplot == NULL) {
+        printf("Erreur ouverture Gnuplot\n");
+        return 1;
+    }
+
+    // Commandes envoyées à Gnuplot
+    fprintf(gnuplot, "set title 'Courbe y = x^2'\n");
+    fprintf(gnuplot, "plot x**2\n");
+
+    // Ferme le processus
+    pclose(gnuplot);
+
+    return 0;*/
 }
