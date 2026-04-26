@@ -255,6 +255,16 @@ void true_pagerank(int N, int** adj, int* deg_out, double* x_pair ){
     free(f);
 }
 
+double somme_vecteur(double* v, int N){
+    double s = 0.0;
+
+    for(int i = 0; i < N; i++){
+        s += v[i];
+    }
+
+    return s;
+}
+
 // ========================
 // Affichage
 // ========================
@@ -279,6 +289,14 @@ int main(){
     lire_graphe_matrixmarket("wikipedia.mtx", &N, &adj, &deg_out);
     pi = malloc(N*sizeof(double));
     true_pagerank(N, adj, deg_out, pi);
+
+    printf("Somme du vecteur PageRank = %.12f\n", somme_vecteur(pi, N));
+
+    if(fabs(somme_vecteur(pi, N) - 1.0) < EPSILON){
+        printf("Verification OK : la somme vaut 1\n");
+    }else{
+        printf("Erreur : la somme ne vaut pas 1\n");
+    }
     //pagerank_liste(N, adj, deg_out, pi);
     //afficher_pagerank(N, pi);
 
