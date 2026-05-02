@@ -1,0 +1,49 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<title>Comparaison PageRank</title>
+<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+</head><body>
+<h2>Comparaison des rankings : Google vs Autre</h2>
+<canvas id='myChart' width='600' height='600'></canvas>
+<script>
+const data = [
+  { x: 1, y: 1 },
+  { x: 2, y: 3 },
+  { x: 3, y: 2 },
+  { x: 4, y: 5 },
+  { x: 5, y: 4 },
+  { x: 6, y: 8 },
+  { x: 7, y: 6 },
+  { x: 8, y: 7 },
+  { x: 9, y: 10 },
+  { x: 10, y: 9 },
+];
+const diag = [ {x:1,y:1}, {x:10,y:10} ];
+new Chart(document.getElementById('myChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'Pages',
+        data: data,
+        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        pointRadius: 6
+      },
+      {
+        label: 'Accord parfait (y=x)',
+        data: diag,
+        type: 'line',
+        borderColor: 'red',
+        borderDash: [6,4],
+        pointRadius: 0,
+        fill: false
+      }
+    ]
+  },
+  options: {
+    scales: {
+      x: { title: { display: true, text: 'Rang Google PageRank' } },
+      y: { title: { display: true, text: 'Rang Autre methode' } }
+    }
+  }
+});
+</script></body></html>
