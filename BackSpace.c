@@ -1,26 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include "BackSpace.h"
 
-typedef struct {
-    int id_original;        // ID du nœud dans le graphe original (nœud avec un degré sortant de 0)
-    int degre_entrant;      // Son degré entrant (nombre de nœuds pointant vers lui)
-    int* voisins_entrants;  // Liste des nœuds entrants (pointe directement vers un tableau dans la liste d'adjacence inverse)
-} NoeudPuit;
 
 void creer_impasse_aleatoire(int N, int* deg_sortant){
+
+    int nb_sommets_avec_sortie = 0;
+
+    for(int i = 0; i < N; i++){
+        if(deg_sortant[i] > 0){
+            nb_sommets_avec_sortie++;
+        }
+    }
+
+    if(nb_sommets_avec_sortie == 0){
+        printf("Impossible de creer une impasse : aucun sommet avec sortie.\n");
+        return;
+    }
+
     int sommet = -1;
 
     while(sommet == -1){
         int candidat = rand() % N;//choisir un sommet aléatoire, rand() génere un nombre alétoire 
         // très grand puis on le prend modulo N pour rester dans la plage des sommets
 
+
         if(deg_sortant[candidat] > 0){
             sommet = candidat;
         }
     }
 
-    //printf("Creation d'une impasse : suppression des sorties du sommet %d\n", sommet);
+    printf("Creation d'une impasse : suppression des sorties du sommet %d\n", sommet);
 
     deg_sortant[sommet] = 0;
 }
@@ -400,108 +412,3 @@ void construire_graphe_backspace(
     free(premiere_copie);
 }
 
-int main(){
-    int N;
-    int** adj        = NULL;
-    int* deg_sortant = NULL;
-
-    int** adj_entrant = NULL;
-    int* deg_entrant  = NULL;
-
-    NoeudPuit* puits = NULL;
-    int nb_puits     = 0;
-
-    lire_et_trouver_impasses(
-        "test.mtx",
-        &N,
-        &adj,
-        &deg_sortant,
-        &adj_entrant,
-        &deg_entrant,
-        &puits,
-        &nb_puits
-    );
-
-    if(nb_puits == 0){
-        free(deg_entrant);
-        free(puits);
-
-        if(adj_entrant != NULL){
-            for(int i = 0; i < N; i++){
-                free(adj_entrant[i]);
-            }
-            free(adj_entrant);
-        }
-
-        creer_impasse_aleatoire(N, deg_sortant);
-
-        adj_entrant = NULL;
-        deg_entrant = NULL;
-        puits       = NULL;
-        nb_puits    = 0;
-
-        recalculer_impasses(
-            N,
-            adj,
-            deg_sortant,
-            &adj_entrant,
-            &deg_entrant,
-            &puits,
-            &nb_puits
-        );
-    }
-
-    // Construction du graphe backspace
-
-    int N2;
-    int** adj2        = NULL;
-    int* deg_sortant2 = NULL;
-
-    construire_graphe_backspace(
-        N,
-        adj,
-        deg_sortant,
-        puits,
-        nb_puits,
-        &adj2,
-        &deg_sortant2,
-        &N2
-    );
-
-    // Affichage du nouveau graphe
-
-    printf("\n--- Graphe Backspace ---\n");
-
-    for(int i = 0; i < N2; i++){
-        printf("%d -> ", i);
-
-        for(int k = 0; k < deg_sortant2[i]; k++){
-            printf("%d ", adj2[i][k]);
-        }
-
-        printf("\n");
-    }
-
-    printf("\nN = %d, N2 = %d\n", N, N2);
-    // Libération mémoire
-
-    for(int i = 0; i < N; i++){
-        free(adj[i]);
-        free(adj_entrant[i]);
-    }
-
-    free(adj);
-    free(adj_entrant);
-    free(deg_sortant);
-    free(deg_entrant);
-
-    for(int i = 0; i < N2; i++){
-        free(adj2[i]);
-    }
-
-    free(adj2);
-    free(deg_sortant2);
-    free(puits);
-
-    return 0;
-}
