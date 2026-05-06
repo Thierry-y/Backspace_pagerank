@@ -39,7 +39,9 @@ void construire_graphe_backspace(
     int nb_puits,
     int*** adj2,
     int** deg_sortant2,
-    int* N2
+    int* N2,
+    int** out_nouveau_id,     
+    int** out_premiere_copie
 );
 
 #endif

@@ -240,7 +240,9 @@ void construire_graphe_backspace(
     int nb_impasses,
     int*** adj2,
     int** deg_sortant2,
-    int* N2
+    int* N2,
+    int** out_nouveau_id,
+    int** out_premiere_copie
 ){
 
     int nb_copies = 0;
@@ -253,9 +255,12 @@ void construire_graphe_backspace(
     *N2 = N - nb_impasses + nb_copies; //nouvelle taille du graphe qui sera des N sommet + le nombre 
     //de copie necessaire pour les puits, on enléve le nombre de puits car il seront renommé par les noms des copies
 
-    int* nouveau_id      = malloc(N * sizeof(int)); //tableau des nouveau id des sommet non puit après "suppressions" des puits
+    *out_nouveau_id     = malloc(N * sizeof(int)); 
+    *out_premiere_copie = malloc(N * sizeof(int));
+    
+    int* nouveau_id      = *out_nouveau_id; //tableau des nouveau id des sommet non puit après "suppressions" des puits
     //au profit des copies
-    int* premiere_copie  = malloc(N * sizeof(int)); //tableau qui va contenir les id des première copie des
+    int* premiere_copie  = *out_premiere_copie; //tableau qui va contenir les id des première copie des
     //sommet puits, si le sommet 5 est le premier puit, et qu'il a un degré entrant de 5, il aura comme numéro
     //l'entier (x) juste après le dernier sommet non puit du graphe , et la numéroation du  prochain sommet pui
     //commencera a x+5
@@ -408,7 +413,5 @@ void construire_graphe_backspace(
         }
     }
 
-    free(nouveau_id);
-    free(premiere_copie);
 }
 

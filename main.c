@@ -41,6 +41,59 @@ void afficher_graphe(int N, int** adj, int* deg_sortant, const char* titre){
     }
 }
 
+void fusionner_pagerank(
+    int N, 
+    double* pi_backspace, 
+    int* nouveau_id, 
+    int* premiere_copie, 
+    NoeudPuit* impasses, 
+    int nb_impasses, 
+    double* pi_final
+){
+    for(int i = 0; i < N; i++) {
+        pi_final[i] = 0.0;
+    }
+
+    for(int i = 0; i < N; i++) {
+        if(nouveau_id[i] != -1) {
+            pi_final[i] = pi_backspace[nouveau_id[i]];
+        }
+    }
+
+    for(int i = 0; i < nb_impasses; i++) {
+        int id_original = impasses[i].id_original;
+        int id_copie_start = premiere_copie[id_original];
+        int deg_in = impasses[i].degre_entrant;
+
+        double somme_puits = 0.0;
+        for(int j = 0; j < deg_in; j++) {
+            somme_puits += pi_backspace[id_copie_start + j];
+        }
+        
+        pi_final[id_original] = somme_puits;
+    }
+}
+
+void comparer_resultats(int N, double* pi_google, double* pi_final) {
+    double diff_max = 0.0;
+    int noeud_diff_max = -1;
+    
+    printf("\n--- Comparaison des scores (Google vs Backspace) ---\n");
+    for(int i = 0; i < N; i++) {
+        double diff = fabs(pi_google[i] - pi_final[i]);
+        if(diff > diff_max) {
+            diff_max = diff;
+            noeud_diff_max = i;
+        }
+    }
+    
+    if (noeud_diff_max != -1) {
+        printf("La plus grande difference est sur le noeud %d : diff = %.8f\n", noeud_diff_max, diff_max);
+        printf("   Score Google    = %.8f\n", pi_google[noeud_diff_max]);
+        printf("   Score Backspace = %.8f\n", pi_final[noeud_diff_max]);
+    }
+}
+
 int main(int argc, char* argv[]){
 
     if (argc < 2) {
@@ -74,7 +127,7 @@ int main(int argc, char* argv[]){
         &nb_puits
     );
 
-    afficher_graphe(N, adj, deg_sortant, "Graphe original");
+    // afficher_graphe(N, adj, deg_sortant, "Graphe original");
 
     // 2. Si aucun puits, on cree quelques impasses aleatoirement
     if(nb_puits == 0){
@@ -116,13 +169,16 @@ int main(int argc, char* argv[]){
 
     printf("\n--- PageRank Google classique ---\n");
     true_pagerank(N, adj, deg_sortant, pi_google);
-    afficher_pagerank(N, pi_google);
+    // afficher_pagerank(N, pi_google);
     verifier_vecteur_proba(pi_google, N, "PageRank Google");
 
     // 4. Construction du graphe Backspace
     int N2;
     int** adj2 = NULL;
     int* deg_sortant2 = NULL;
+
+    int* nouveau_id = NULL;
+    int* premiere_copie = NULL;
 
     construire_graphe_backspace(
         N,
@@ -132,10 +188,12 @@ int main(int argc, char* argv[]){
         nb_puits,
         &adj2,
         &deg_sortant2,
-        &N2
+        &N2,
+        &nouveau_id, 
+        &premiere_copie
     );
 
-    afficher_graphe(N2, adj2, deg_sortant2, "Graphe Backspace");
+    // afficher_graphe(N2, adj2, deg_sortant2, "Graphe Backspace");
 
     printf("\nN = %d, N2 = %d\n", N, N2);
 
@@ -149,12 +207,28 @@ int main(int argc, char* argv[]){
 
     printf("\n--- PageRank Backspace ---\n");
     true_pagerank(N2, adj2, deg_sortant2, pi_backspace);
-    afficher_pagerank(N2, pi_backspace);
+    // afficher_pagerank(N2, pi_backspace);
     verifier_vecteur_proba(pi_backspace, N2, "PageRank Backspace");
 
-    // 6. Liberation memoire
+    // 6. Fusion et compare
+    double* pi_final = malloc(N * sizeof(double));
+    if(pi_final == NULL){
+        printf("Erreur allocation pi_final\n");
+        exit(1);
+    }
+    
+    fusionner_pagerank(N, pi_backspace, nouveau_id, premiere_copie, puits, nb_puits, pi_final);
+    verifier_vecteur_proba(pi_final, N, "PageRank Final (Fusionne)");
+
+    // afficher_pagerank(N, pi_final);
+    comparer_resultats(N, pi_google, pi_final);
+
+    // 7. Liberation memoire
     free(pi_google);
     free(pi_backspace);
+    free(pi_final);
+    free(nouveau_id);      
+    free(premiere_copie);
 
     liberer_graphe(adj, N);
     liberer_graphe(adj_entrant, N);
