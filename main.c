@@ -20,7 +20,7 @@ void verifier_vecteur_proba(double* pi, int N, const char* nom){
 
     printf("\nSomme %s = %.12f\n", nom, somme);
 
-    if(fabs(somme - 1.0) < EPSILON){ //on verifie que la somme des element des vecteur est très proche de 1
+    if(fabs(somme - 1.0) < EPSILON){ 
         printf("Verification OK : %s est un vecteur de probabilite\n", nom);
     }else{
         printf("Erreur : %s ne somme pas a 1\n", nom);
@@ -41,7 +41,13 @@ void afficher_graphe(int N, int** adj, int* deg_sortant, const char* titre){
     }
 }
 
-int main(){
+int main(int argc, char* argv[]){
+
+    if (argc < 2) {
+        printf("Usage : %s <nom_du_fichier.mtx>\n", argv[0]);
+        printf("Exemple : %s test2.mtx\n", argv[0]);
+        return 1; 
+    }
 
     srand(time(NULL));
 
@@ -56,8 +62,9 @@ int main(){
     int nb_puits = 0;
 
     // 1. Lecture du graphe original
+    printf("\nLecture du fichier : %s\n", argv[1]);
     lire_et_trouver_impasses(
-        "test2.mtx",
+        argv[1],
         &N,
         &adj,
         &deg_sortant,
