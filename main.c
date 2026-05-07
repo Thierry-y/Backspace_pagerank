@@ -201,24 +201,40 @@ void fusionner_pagerank(
     }
 }
 
-void comparer_resultats(int N, double* pi_google, double* pi_final) {
-    double diff_max = 0.0;
-    int noeud_diff_max = -1;
-    
-    printf("\n--- Comparaison des scores (Google vs Backspace) ---\n");
-    for(int i = 0; i < N; i++) {
-        double diff = fabs(pi_google[i] - pi_final[i]);
-        if(diff > diff_max) {
-            diff_max = diff;
-            noeud_diff_max = i;
+void comparer_resultats(int N, double* pi_google, double* pi_final, NoeudPuit* impasses, int nb_impasses) {
+    printf("\n--- Comparaison des peres d'impasses (Google vs Backspace) ---\n");
+
+    int* est_pere_impasse = calloc(N, sizeof(int));
+    if (est_pere_impasse == NULL) {
+        printf("Erreur allocation memoire pour est_pere_impasse\n");
+        return;
+    }
+
+    int nb_peres_uniques = 0;
+    for (int i = 0; i < nb_impasses; i++) {
+        for (int j = 0; j < impasses[i].degre_entrant; j++) {
+            int pere = impasses[i].voisins_entrants[j];
+            if (est_pere_impasse[pere] == 0) {
+                est_pere_impasse[pere] = 1;
+                nb_peres_uniques++;
+            }
         }
     }
-    
-    if (noeud_diff_max != -1) {
-        printf("La plus grande difference est sur le noeud %d : diff = %.8f\n", noeud_diff_max, diff_max);
-        printf("   Score Google    = %.8f\n", pi_google[noeud_diff_max]);
-        printf("   Score Backspace = %.8f\n", pi_final[noeud_diff_max]);
+
+    printf("Trouve %d peres uniques pointant vers des impasses.\n\n", nb_peres_uniques);
+    printf("%-10s | %-18s | %-18s | %-18s\n", "Noeud", "Score Google", "Score Backspace", "Difference (B - G)");
+    printf("-----------------------------------------------------------------------\n");
+
+    for (int i = 0; i < N; i++) {
+        if (est_pere_impasse[i] == 1) {
+            double diff = pi_final[i] - pi_google[i];
+            
+            printf("%-10d | %.12f   | %.12f   | %+.12f\n", 
+                   i, pi_google[i], pi_final[i], diff);
+        }
     }
+
+    free(est_pere_impasse);
 }
 
 int main(int argc, char* argv[]){
@@ -296,7 +312,7 @@ int main(int argc, char* argv[]){
 
     printf("\n--- PageRank Google classique ---\n");
     true_pagerank(N, adj, deg_sortant, pi_google);
-    // afficher_pagerank(N, pi_google);
+    afficher_pagerank(N, pi_google);
     verifier_vecteur_proba(pi_google, N, "PageRank Google");
 
     // 4. Construction du graphe Backspace
@@ -347,8 +363,8 @@ int main(int argc, char* argv[]){
     fusionner_pagerank(N, pi_backspace, nouveau_id, premiere_copie, puits, nb_puits, pi_final);
     verifier_vecteur_proba(pi_final, N, "PageRank Final (Fusionne)");
 
-    // afficher_pagerank(N, pi_final);
-    comparer_resultats(N, pi_google, pi_final);
+    afficher_pagerank(N, pi_final);
+    comparer_resultats(N, pi_google, pi_final, puits, nb_puits);
 
     tracer_nuage_points_gnuplot(N, pi_google, pi_final);
 
