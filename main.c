@@ -6,6 +6,133 @@
 #include "BackSpace.h"
 #include "PageRank.h"
 
+int compare_doubles(const void *a, const void *b) {
+    double arg1 = *(const double*)a;
+    double arg2 = *(const double*)b;
+    if (arg1 < arg2) return -1;
+    if (arg1 > arg2) return 1;
+    return 0;
+}
+
+void calculer_stats(double* arr_trie, int N, double* std_dev, double* gini) {
+    double mean = 1.0 / N;
+    double variance = 0.0;
+    double sum_i_xi = 0.0;
+
+    for(int i = 0; i < N; i++) {
+        double diff = arr_trie[i] - mean;
+        variance += diff * diff;
+        
+        sum_i_xi += (i + 1) * arr_trie[i];
+    }
+    
+    *std_dev = sqrt(variance / N);
+    *gini = (2.0 / N) * sum_i_xi - (double)(N + 1) / N;
+}
+
+void tracer_courbe_gnuplot(int N, double* pi_google, double* pi_final) {
+    printf("\n--- Generation du Graphique Gnuplot ---\n");
+
+    double* sorted_google = malloc(N * sizeof(double));
+    double* sorted_backspace = malloc(N * sizeof(double));
+    
+    for(int i = 0; i < N; i++) {
+        sorted_google[i] = pi_google[i];
+        sorted_backspace[i] = pi_final[i];
+    }
+    
+    qsort(sorted_google, N, sizeof(double), compare_doubles);
+    qsort(sorted_backspace, N, sizeof(double), compare_doubles);
+
+    double std_google, gini_google;
+    double std_backspace, gini_backspace;
+    calculer_stats(sorted_google, N, &std_google, &gini_google);
+    calculer_stats(sorted_backspace, N, &std_backspace, &gini_backspace);
+
+    printf("Statistiques Google    : StdDev = %.8f, Gini = %.4f\n", std_google, gini_google);
+    printf("Statistiques Backspace : StdDev = %.8f, Gini = %.4f\n", std_backspace, gini_backspace);
+
+    FILE* data_file = fopen("plot_data.dat", "w");
+    if (!data_file) {
+        printf("Erreur : Impossible de creer le fichier de donnees.\n");
+        free(sorted_google); free(sorted_backspace);
+        return;
+    }
+    for(int i = 0; i < N; i++) {
+        fprintf(data_file, "%d %e %e\n", i, sorted_google[i], sorted_backspace[i]);
+    }
+    fclose(data_file);
+
+    FILE* gnuplot = popen("gnuplot -persistent", "w");
+    if (!gnuplot) {
+        printf("Erreur : Gnuplot introuvable. Assurez-vous qu'il est installe.\n");
+        free(sorted_google); free(sorted_backspace);
+        return;
+    }
+
+    fprintf(gnuplot, "set title 'Distribution des Scores PageRank (Triés)' font ',14'\n");
+    fprintf(gnuplot, "set xlabel 'Noeuds (triés du plus petit au plus grand)'\n");
+    fprintf(gnuplot, "set ylabel 'Score PageRank (Echelle Logarithmique)'\n");
+    
+    fprintf(gnuplot, "set logscale y\n");
+    fprintf(gnuplot, "set format y '10^{%%L}'\n");
+    fprintf(gnuplot, "set grid\n");
+    fprintf(gnuplot, "set key top left\n");
+
+    fprintf(gnuplot, "set label 1 'Google    : StdDev = %.2e, Gini = %.4f' at graph 0.05, 0.80 textcolor rgb 'blue' font ',11'\n", std_google, gini_google);
+    fprintf(gnuplot, "set label 2 'Backspace : StdDev = %.2e, Gini = %.4f' at graph 0.05, 0.73 textcolor rgb 'red' font ',11'\n", std_backspace, gini_backspace);
+
+    fprintf(gnuplot, "plot 'plot_data.dat' using 1:2 with lines lw 2 lc rgb 'blue' title 'Google PR', \\\n");
+    fprintf(gnuplot, "     'plot_data.dat' using 1:3 with lines lw 2 lc rgb 'red' title 'Backspace PR'\n");
+
+    pclose(gnuplot);
+    free(sorted_google);
+    free(sorted_backspace);
+}
+
+void tracer_nuage_points_gnuplot(int N, double* pi_google, double* pi_final) {
+    printf("\n--- Generation du Scatter Plot Gnuplot ---\n");
+
+    FILE* data_file = fopen("scatter_data.dat", "w");
+    if (!data_file) {
+        printf("Erreur : Impossible de creer le fichier.\n");
+        return;
+    }
+    
+    double min_val = 1.0, max_val = 0.0;
+    for(int i = 0; i < N; i++) {
+        if(pi_google[i] > 0 && pi_final[i] > 0) {
+            fprintf(data_file, "%d %e %e\n", i, pi_google[i], pi_final[i]);
+            if(pi_google[i] > max_val) max_val = pi_google[i];
+            if(pi_google[i] < min_val) min_val = pi_google[i];
+            if(pi_final[i] > max_val) max_val = pi_final[i];
+            if(pi_final[i] < min_val) min_val = pi_final[i];
+        }
+    }
+    fclose(data_file);
+
+    FILE* gnuplot = popen("gnuplot -persistent", "w");
+    if (!gnuplot) return;
+
+    fprintf(gnuplot, "set title 'Google PR vs Backspace PR (Comparaison par Noeud)' font ',14'\n");
+    fprintf(gnuplot, "set xlabel 'Score Google PR (Log)'\n");
+    fprintf(gnuplot, "set ylabel 'Score Backspace PR (Log)'\n");
+    
+    fprintf(gnuplot, "set logscale xy\n");
+    fprintf(gnuplot, "set format x '10^{%%L}'\n");
+    fprintf(gnuplot, "set format y '10^{%%L}'\n");
+    fprintf(gnuplot, "set grid\n");
+    
+    fprintf(gnuplot, "set size square\n");
+    fprintf(gnuplot, "set xrange [%e:%e]\n", min_val/2, max_val*2);
+    fprintf(gnuplot, "set yrange [%e:%e]\n", min_val/2, max_val*2);
+
+    fprintf(gnuplot, "plot x with lines lc rgb 'black' lw 2 title 'Y = X (Aucun changement)', \\\n");
+    fprintf(gnuplot, "     'scatter_data.dat' using 2:3 with points pt 7 ps 0.5 lc rgb 'blue' title 'Noeuds'\n");
+
+    pclose(gnuplot);
+}
+
 void liberer_graphe(int** adj, int N){
     if(adj != NULL){
         for(int i = 0; i < N; i++){
@@ -222,6 +349,8 @@ int main(int argc, char* argv[]){
 
     // afficher_pagerank(N, pi_final);
     comparer_resultats(N, pi_google, pi_final);
+
+    tracer_nuage_points_gnuplot(N, pi_google, pi_final);
 
     // 7. Liberation memoire
     free(pi_google);
