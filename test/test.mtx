@@ -1,0 +1,62 @@
+%%MatrixMarket matrix coordinate pattern general
+%-------------------------------------------------------------------------------
+% UF Sparse Matrix Collection, Tim Davis
+% http://www.cise.ufl.edu/research/sparse/matrices/Gleich/wb-cs-stanford
+% name: Gleich/wb-cs-stanford
+% [Stanford CS web, A(i,j)=1 if page i links to page j (2001)]
+% id: 1841
+% date: 2001
+% author: D. Gleich
+% ed: T. Davis
+% fields: name title A id date author ed kind notes
+% kind: directed graph
+%-------------------------------------------------------------------------------
+% notes:
+% For nodenames, see http://www.cise.ufl.edu/research/sparse/aux/Gleich
+% This graph is a subset of Gleich/wb-edu, with *.cs.stanford.edu only.
+%-------------------------------------------------------------------------------
+20 20 44
+1 2
+1 3
+1 4
+1 5
+2 1
+2 3
+3 4
+3 5
+4 5
+4 6
+5 7
+5 8
+5 9
+6 4
+6 10
+7 8
+7 9
+7 10
+7 11
+8 9
+9 12
+10 1
+10 11
+10 12
+10 13
+11 14
+11 15
+12 11
+12 14
+13 10
+13 16
+13 17
+14 15
+14 18
+15 16
+16 13
+16 19
+17 18
+17 19
+17 20
+18 1
+18 20
+19 20
+20 1
