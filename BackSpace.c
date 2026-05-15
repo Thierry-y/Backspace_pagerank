@@ -7,6 +7,8 @@
 
 void creer_impasse_aleatoire(int N, int* deg_sortant){
 
+    //on compte d'abord les sommets qui peuvent encore devenir un puit
+    //sinon rand pourrai tourner pour rien
     int nb_sommets_avec_sortie = 0;
 
     for(int i = 0; i < N; i++){
@@ -16,6 +18,7 @@ void creer_impasse_aleatoire(int N, int* deg_sortant){
     }
 
     if(nb_sommets_avec_sortie == 0){
+        //si tout les sommet sont deja sans sortie on peut pas en creer une nouvelle
         printf("Impossible de creer une impasse : aucun sommet avec sortie.\n");
         return;
     }
@@ -34,6 +37,8 @@ void creer_impasse_aleatoire(int N, int* deg_sortant){
 
     printf("Creation d'une impasse : suppression des sorties du sommet %d\n", sommet);
 
+    //mettre son degre sortant a 0 suffit ici, on garde adj comme il est mais on ne lit plus ses anciennes
+    //  sorties
     deg_sortant[sommet] = 0;
 }
 
@@ -46,17 +51,18 @@ void recalculer_impasses(
     NoeudPuit** puits,
     int* nb_puits
 ){
+    //fonction utiliser quand on modifie les degres sortants, il faut donc refaire toute les listes entrantes
     // recalculer deg_entrant
     *deg_entrant = calloc(N, sizeof(int));
 
     if(*deg_entrant == NULL){
-        printf("Erreur allocation deg_entrant\n");
+        printf("Erreur dans l'allocatio de deg_entrant\n");
         exit(1);
     }
 
     for(int i = 0; i < N; i++){
         for(int k = 0; k < deg_sortant[i]; k++){
-            //augmenter le nombre de voisins entrant du sommet de destination
+            //on trouve les voinsins et on leur ajoute 1 dans leur nombre de voisins entrants
             int destination = adj[i][k];
             (*deg_entrant)[destination]++;
         }
@@ -66,15 +72,16 @@ void recalculer_impasses(
     *adj_entrant = malloc(N * sizeof(int*));
 
     if(*adj_entrant == NULL){
-        printf("Erreur allocation adj_entrant\n");
+        printf("Erreur dans l'allocation deadj_entrant\n");
         exit(1);
     }
 
     for(int i = 0; i < N; i++){
+        // on aloue les liste de voisins entrants grace aux deg_entrant qu'on a caclulé
         (*adj_entrant)[i] = malloc((*deg_entrant)[i] * sizeof(int));
 
         if((*deg_entrant)[i] > 0 && (*adj_entrant)[i] == NULL){
-            printf("Erreur allocation adj_entrant[%d]\n", i);
+            printf("Err dans l'allocation de adj_ent[%d]\n", i);
             exit(1);
         }
     }
@@ -99,7 +106,7 @@ void recalculer_impasses(
 
     free(position);
 
-    // compter les impasses
+    // compter les impasses ou puits
     *nb_puits = 0;
 
     for(int i = 0; i < N; i++){
@@ -112,11 +119,11 @@ void recalculer_impasses(
     *puits = malloc((*nb_puits) * sizeof(NoeudPuit));
 
     if(*nb_puits > 0 && *puits == NULL){
-        printf("Erreur allocation puits\n");
+        printf("Erreur dans l'allocation des puits\n");
         exit(1);
     }
 
-    // remplir le tableau d'impasses
+    // remplir le tableau de puits
     int index = 0;
 
     for(int i = 0; i < N; i++){
@@ -135,14 +142,16 @@ void lire_et_trouver_impasses(const char* nom_fichier,
                               int*** adj_entrant, int** deg_entrant,
                               NoeudPuit** puits, int* nb_puits) {
     
+    //on ouvre le fichier .mtx pour lire les aretes une par une
     FILE* f = fopen(nom_fichier, "r");
     if(!f){
-        printf("Erreur ouverture fichier %s\n", nom_fichier);
+        printf("Erreur dans l'ouverture du fichier %s\n", nom_fichier);
         exit(1);
     }
 
     char ligne[1024];
 
+    //premiere ligne du fichier  elle doit contenir le type MatrixMarket
     if(!fgets(ligne, sizeof(ligne), f))
 
     {
@@ -155,20 +164,25 @@ void lire_et_trouver_impasses(const char* nom_fichier,
 
     do {
 
+        //on saute les lignes de commentaire du fichier MatrixMarket
         if(!fgets(ligne, sizeof(ligne), f)) exit(1);
 
     } while(ligne[0] == '%');
 
     int nrows, ncols, M;
     sscanf(ligne, "%d %d %d", &nrows, &ncols, &M);
+    //on garde seulement nrows car ici on suppose que le graphe est carre
     *N = nrows;
 
     int* sources      = malloc(M * sizeof(int)); //allocation de la liste des sommet "source" 
     int* destinations = malloc(M * sizeof(int)); //allocation de la liste des sommet "destination"
-    
+    //allocations des liste des degré sortants et entrants
     *deg_sortant = calloc(*N, sizeof(int));
     *deg_entrant = calloc(*N, sizeof(int));
 
+    //premier passage sur les aretes pour compter les degres entrants et sortants
+    //comme ca on sait exactement combien allouer apres
+    //on calcule aussi les arrêtes (une pierre 2 coup)
     for(int k = 0; k < M; k++){
         int u, v;
         fscanf(f, "%d %d", &u, &v);
@@ -183,11 +197,12 @@ void lire_et_trouver_impasses(const char* nom_fichier,
         (*deg_entrant)[v]++; 
     }
     fclose(f);
-
+    //allouer les liste d'adjacences
     *adj        = malloc((*N) * sizeof(int*));
     *adj_entrant = malloc((*N) * sizeof(int*));
     //alocation mémoire des listes des voisins entrants et sortants
     for(int i = 0; i < *N; i++){
+        //chaque sommet a une liste de taille egale a son degre
         (*adj)[i]         = malloc((*deg_sortant)[i] * sizeof(int));
         (*adj_entrant)[i] = malloc((*deg_entrant)[i] * sizeof(int));
     }
@@ -200,7 +215,7 @@ void lire_et_trouver_impasses(const char* nom_fichier,
         int u = sources[k];
         int v = destinations[k];
         
-        (*adj)[u][pos_sortant[u]++]         = v;     
+        (*adj)[u][pos_sortant[u]++] = v;     
         (*adj_entrant)[v][pos_entrant[v]++] = u;  
     }
 
@@ -209,6 +224,7 @@ void lire_et_trouver_impasses(const char* nom_fichier,
     *nb_puits = 0;
     //compter le nombre de puit
     for(int i = 0; i < *N; i++) {
+        //un puit ici c'est un sommet qui recoit des liens mais qui ne sort pas
         if((*deg_sortant)[i] == 0 && (*deg_entrant)[i] > 0) {
             (*nb_puits)++;
         }
@@ -219,9 +235,10 @@ void lire_et_trouver_impasses(const char* nom_fichier,
     //remplir le tableau de puits
     int index = 0; //index pour se deplcaer dans le tableau des puits
     for(int i = 0; i < *N; i++) {
+        //on refait le meme test pour stocker les infos du puit
         if((*deg_sortant)[i] == 0 && (*deg_entrant)[i] > 0) {
-            (*puits)[index].id_original      = i; //stocker le numero du sommet
-            (*puits)[index].degre_entrant    = (*deg_entrant)[i];//stocker le degré entrant du sommet
+            (*puits)[index].id_original  = i; //stocker le numero du sommet
+            (*puits)[index].degre_entrant  = (*deg_entrant)[i];//stocker le degré entrant du sommet
             
             (*puits)[index].voisins_entrants = (*adj_entrant)[i]; //stocker les voisin entrants
             
@@ -245,6 +262,7 @@ void construire_graphe_backspace(
     int** out_premiere_copie
 ){
 
+    //dans Backspace chaque puit est remplacer par autant de copies que de parents
     int nb_copies = 0;
 
     for(int i = 0; i < nb_impasses; i++){
@@ -274,6 +292,7 @@ void construire_graphe_backspace(
         nouveau_id[i]     = -1; 
         premiere_copie[i] = -1;
     }
+    //-1 veut dire que le sommet n'a pas encore recu de nouveau numero
 
     //prochain_id sert à savoir le nom du numéro allouer au prochain sommet
     int prochain_id = 0;
@@ -286,6 +305,7 @@ void construire_graphe_backspace(
         int est_impasse = 0;
 
         for(int j = 0; j < nb_impasses; j++){
+            //on compare avec la liste des puits pour savoir si i doit etre supprimer
             if(impasses[j].id_original == i){
                 est_impasse = 1;
             }
@@ -327,6 +347,7 @@ void construire_graphe_backspace(
 
         for(int j = 0; j < impasses[i].degre_entrant; j++){
             int id_copie = premiere_copie[sommet_puit] + j;
+            //chaque copie ne sort que vers son pere donc degre sortant = 1
             (*deg_sortant2)[id_copie] = 1;
         }
     }
@@ -344,7 +365,7 @@ void construire_graphe_backspace(
         (*adj2)[i] = malloc((*deg_sortant2)[i] * sizeof(int));
 
         if((*deg_sortant2)[i] > 0 && (*adj2)[i] == NULL){
-            printf("Erreur allocation adj2[%d]\n", i);
+            printf("Erreur lors de l'allocation de adj2[%d]\n", i);
             exit(1);
         }
     }
@@ -356,7 +377,8 @@ void construire_graphe_backspace(
 
             int id_sommet = nouveau_id[sommet];
 
-            for(int k = 0; k < deg_sortant[sommet]; k++){// on parcours ses voisins
+            for(int k = 0; k < deg_sortant[sommet]; k++){// on parcours ses voisins sortants
+                //destination est encore un id de l'ancien graphe
                 int destination = adj[sommet][k];
 
                 if(premiere_copie[destination] != -1){// si le noeud de destination est un puit(possède un numéro de premère copie)
@@ -372,10 +394,12 @@ void construire_graphe_backspace(
 
                     int numero_copie = -1;//on cherche quelle est la bonne copie du puit
 
-                    if(indice_impasse != -1){// on verifie que le puis à bien in indice dans le tab des puits
+                    if(indice_impasse != -1){// on verifie que le puis à bien in indice dans
+                        //  le tab des puits
                         for(int j = 0; j < impasses[indice_impasse].degre_entrant; j++){// on cherche dans
                             //les degré entrants du puit, si il est à l'indice j, alors
                             //le numéro de la copie sera la j ème
+                            //en gros chaque pere a sa propre copie du puit
                             if(impasses[indice_impasse].voisins_entrants[j] == sommet){
                                 numero_copie = j;
                             }
@@ -383,6 +407,7 @@ void construire_graphe_backspace(
                     }
 
                     if(numero_copie == -1){
+                        //normalement ce cas arrive pas si la liste des voisins entrants est correcte
                         printf("Erreur : copie non trouvee pour %d -> %d\n",
                                sommet, destination);
                         exit(1);
